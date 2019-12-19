@@ -77,11 +77,11 @@ public:
 		_glyphs(std::make_unique<short[]>(w * h)),
 		_colours(std::make_unique<short[]>(w * h))
 	{
-		//if (!load(sFile)) 
-		//{
+		if (!load(sFile)) 
+		{
 			//Note create should be 8, 8.
-		//	create();
-		//}
+			create();
+		}
 	}
 
 	void setGlyph(int x, int y, short c) 
@@ -116,6 +116,94 @@ public:
 		}
 	}
 
+	short sampleGlyph(float x, float y) 
+	{
+		short result = 0; 
+		int sx = static_cast<int>(x * static_cast<float>(_width));
+		int sy = static_cast<int>(y * static_cast<float>(_height - 1.f));
+
+		if (sx < 0 || sx >= _width || sy < 0 || sy >= _height) 
+		{
+			result = L' ';
+		}
+		else 
+		{
+			result = _glyphs[sy * _width + sx];
+		}
+
+		return result;
+	}
+
+	short sampleColour(float x, float y) 
+	{
+		short result = 0;
+		int sx = static_cast<int>(x * static_cast<float>(_width));
+		int sy = static_cast<int>(y * static_cast<float>(_height - 1.f));
+
+		if (sx < 0 || sx >= _width || sy < 0 || sy >= _height)
+		{
+			result = FG_BLACK;
+		}
+		else
+		{
+			result = _colours[sy * _width + sx];
+		}
+
+		return result;
+	}
+
+	bool save(const std::wstring &sFile) 
+	{
+		bool success = false;
+		FILE *f = nullptr;
+		_wfopen_s(&f, sFile.c_str(), L"wb");
+
+		if (f != nullptr) 
+		{
+			fwrite(&_width, sizeof(int), 1, f);
+			fwrite(&_height, sizeof(int), 1, f);
+
+			fwrite(_colours.get(), sizeof(short), _width * _height, f);
+			fwrite(_glyphs.get(), sizeof(short), _width * _height, f);
+
+			fclose(f);
+
+			success = true;
+		}
+
+		return success;
+	}
+
+	//I have gone with smart pointer. I am not sure this function can work the same
+	//as I am not sure we can use smart pointers like this.
+	//TODO: come up with a design pattern that works for this type of thing.
+	//Also fix the clearly broken function
+	bool load(const std::wstring &sFile) 
+	{
+		bool success = false;
+		_height = 0;
+		_width = 0;
+
+		FILE *f = nullptr;
+		_wfopen_s(&f, sFile.c_str(), L"wb");
+		if (f != nullptr) 
+		{
+			std::fread(&_width, sizeof(int), 1, f);
+			std::fread(&_height, sizeof(int), 1, f);
+
+			create();
+
+			std::fread(_colours.get(), sizeof(short), _width * _height, f);
+			std::fread(_glyphs.get(), sizeof(short), _width * _height, f);
+
+			std::fclose(f);
+
+			success = true;
+		}
+
+		return success;
+	}
+
 	int _width;
 	int _height;
 
@@ -123,13 +211,10 @@ private:
 
 	void create()
 	{
-		if (_glyphs && _colours)
+		for (int i = 0; i < _width * _height; i++)
 		{
-			for (int i = 0; i < _width * _height; i++)
-			{
-				_glyphs[i] = L' ';
-				_colours[i] = FG_BLACK;
-			}
+			_glyphs[i] = L' ';
+			_colours[i] = FG_BLACK;
 		}
 	}
 
