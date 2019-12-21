@@ -1,8 +1,15 @@
 #ifndef OLC_CONSOLE_GAME_ENGINE_HDR
 #define OLC_CONSOLE_GAME_ENGINE_HDR
 
-#include <memory>
+#include <windows.h>
+
+#include <iostream>
+#include <chrono>
 #include <vector>
+#include <list>
+#include <thread>
+#include <atomic>
+#include <condition_variable>
 
 //Standard namespace for static colour and "pixel" types.
 namespace 
@@ -51,6 +58,9 @@ enum PIXEL_TYPE
 	PIXEL_HALF = 0x2592,
 	PIXEL_QUARTER = 0x2591,
 };
+
+const int TOTAL_KEYS = 256;
+const int TOTAL_MOUSE_PRESSES = 5
 
 }; //TED
 
@@ -225,7 +235,128 @@ private:
 class ConsoleGameEngine 
 {
 public:
-	ConsoleGameEngine();
+	ConsoleGameEngine() : _screenWidth(80), _screenHeight(30), _consoleInFocus(true),
+    _enableSound(false), _mousePosX(0), _mousePosY(0), _appName(L"Default")
+    {
+        _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        _hConsoleIn = GetStdHandle(STD_OUTPUT_HANDLE);
+        
+        std::memset(_keyNewState, 0, TOTAL_KEYS * sizeof(short));
+        std::memset(_keyOldState, 0, TOTAL_KEYS * sizeof(short));
+        std::memset(_keys, 0, TOTAL_KEYS * sizeof(KeyState));
+    }
+    
+    void enableSound()
+    {
+        _enableSound = true;
+    }
+    
+    int constructConsole(int width, int height, int fontw, int fonth)
+    {
+        if(_hConsole == INVALID_HANDLE_VALUE)
+        {
+            return Error(L"Bad Handle");
+        }
+        
+        _screenWidth = width;
+        _screenHeight = height;
+        
+        _rectWindow = {0, 0, 1, 1};
+        SetConsoleWindowInfo(_hConsole, true, &_rectWindow);
+        
+        //Here we set the screen buffer up.
+        COORD coord = {static_cast<short>(_screenWidth), static_cast<short>(_screenHeight)};
+        
+        if(!SetConsoleScreenBufferSize(_hConsole, coord))
+        {
+            Error(L"SetConsoleScreenBufferSize");
+        }
+        
+        //Assign screen buffer to the console.
+        if(!SetConsoleActiveScreenBuffer(_hConsole))
+        {
+            return Error(L"SetConsoleActiveScreenBuffer");
+        }
+        
+        //Set the font size.
+        CONSOLE_FONT_INFOEX cfi;
+        cfi.cbSize = sizeof(cfi);
+        cfi.nFont = 0;
+        cfi.dwFontSize.X = fontw;
+        cfi.dwFontSize.Y = fonth;
+        cfi.FontFamily = FF_DONTCARE;
+        cfi.FontWeight = FW_Normal;
+        
+        DWORD version = GetVersion();
+        DWORD major static_cast<DWORD>(LOBYTE(LOWORD(version)));
+        DWORD minor = static_cast<DWORD>(HIBYTE(LOWORD(version)));
+        
+        wcscpy(cfi.FaceName, L"Console");
+        if(!SetCurrentConsoleFontEx(_hConsole, false, &cfi))
+        {
+            return Error(L"SetCurrentConsoleFontEx");
+        }
+        
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        if(!GetConsoleScreenBufferInfo(_hConsole, &csbi))
+        {
+            return Error(L"GetConsoleScreenBufferInfo");
+        }
+        
+        if(_screenHeight > csbi.dwMaximumWindowSize.Y)
+        {
+            return Error(L"Screen Height / FontHeight too large");
+        }
+        
+        if(_screenWidth > csbi.dwMaximumWindowSize.X)
+        {
+            return Error(L"Screen Width / FontWidth too large");
+        }
+        
+        _bufScreen = new CHAR_INFO[_screenWidth * _screenHeight];
+        memset(_bufScreen, 0, sizeof(CHAR_INFO) * _screenWidth * _screenHeight);
+        
+        SetConsoleCtrlHandler(static_cast<PHANDLER_ROUTINE>(CloseHandler), true);
+        
+        return 1;
+    }
+    
+    void draw(int x, int y, short c = 0x2588, short col = 0x000F)
+    {
+        if(x >= 0 && x < _screenWidth && y >= 0 && y < _screenHeight)
+        {
+            _bufScreen[y * _screenWidth + x].Char.UnicodeChar = c;
+            _bufScreen[y * _screenWidth + x].Attributes = col;
+        }
+    }
+protected:
+
+	struct KeyState
+	{
+		bool pressed;
+		bool released;
+		bool held;
+	} _keys[TOTAL_KEYS], _mouse[TOTAL_MOUSE_PRESSES];
+
+	int _mousePosX;
+	int _mousePosY;
+
+    int _screenWidth;
+    int _screenHeight;
+    
+    CHAR_INFO *_bufScreen;
+	std::wstring _appName;
+	HANDLE _hOriginalConsole;
+	CONSOLE_SCREEN_BUFFER_INFO _originalConsoleInfo;
+	HANDLE _hConsole;
+	HANDLE _hConsoleIn;
+	SMALL_RECT _rectWindow;
+	short _keyOldState[TOTAL_KEYS] = { 0 };
+	short _keyNewState[TOTAL_KEYS] = { 0 };
+	bool _mouseOldState[TOTAL_MOUSE_PRESSES] = { 0 };
+	bool _mouseNewState[TOTAL_MOUSE_PRESSES] = { 0 };
+	bool _consoleInFocus;
+	bool _enableSound;
 };
 
 }; //olc
