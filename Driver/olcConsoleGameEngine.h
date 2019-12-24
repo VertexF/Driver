@@ -60,7 +60,7 @@ enum PIXEL_TYPE
 };
 
 const int TOTAL_KEYS = 256;
-const int TOTAL_MOUSE_PRESSES = 5
+const int TOTAL_MOUSE_PRESSES = 5;
 
 }; //TED
 
@@ -255,7 +255,7 @@ public:
     {
         if(_hConsole == INVALID_HANDLE_VALUE)
         {
-            return Error(L"Bad Handle");
+            return errorMsg(L"Bad Handle");
         }
         
         _screenWidth = width;
@@ -269,13 +269,13 @@ public:
         
         if(!SetConsoleScreenBufferSize(_hConsole, coord))
         {
-            Error(L"SetConsoleScreenBufferSize");
+			return errorMsg(L"SetConsoleScreenBufferSize");
         }
         
         //Assign screen buffer to the console.
         if(!SetConsoleActiveScreenBuffer(_hConsole))
         {
-            return Error(L"SetConsoleActiveScreenBuffer");
+            return errorMsg(L"SetConsoleActiveScreenBuffer");
         }
         
         //Set the font size.
@@ -285,38 +285,38 @@ public:
         cfi.dwFontSize.X = fontw;
         cfi.dwFontSize.Y = fonth;
         cfi.FontFamily = FF_DONTCARE;
-        cfi.FontWeight = FW_Normal;
+        cfi.FontWeight = FW_NORMAL;
         
-        DWORD version = GetVersion();
-        DWORD major static_cast<DWORD>(LOBYTE(LOWORD(version)));
-        DWORD minor = static_cast<DWORD>(HIBYTE(LOWORD(version)));
-        
+        //DWORD version = GetVersion();
+        //DWORD major = static_cast<DWORD>(LOBYTE(LOWORD(version)));
+        //DWORD minor = static_cast<DWORD>(HIBYTE(LOWORD(version)));
+
         wcscpy(cfi.FaceName, L"Console");
         if(!SetCurrentConsoleFontEx(_hConsole, false, &cfi))
         {
-            return Error(L"SetCurrentConsoleFontEx");
+            return errorMsg(L"SetCurrentConsoleFontEx");
         }
         
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         if(!GetConsoleScreenBufferInfo(_hConsole, &csbi))
         {
-            return Error(L"GetConsoleScreenBufferInfo");
+            return errorMsg(L"GetConsoleScreenBufferInfo");
         }
         
         if(_screenHeight > csbi.dwMaximumWindowSize.Y)
         {
-            return Error(L"Screen Height / FontHeight too large");
+            return errorMsg(L"Screen Height / FontHeight too large");
         }
         
         if(_screenWidth > csbi.dwMaximumWindowSize.X)
         {
-            return Error(L"Screen Width / FontWidth too large");
+            return errorMsg(L"Screen Width / FontWidth too large");
         }
         
         _bufScreen = new CHAR_INFO[_screenWidth * _screenHeight];
         memset(_bufScreen, 0, sizeof(CHAR_INFO) * _screenWidth * _screenHeight);
         
-        SetConsoleCtrlHandler(static_cast<PHANDLER_ROUTINE>(CloseHandler), true);
+        SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(closeHandler), true);
         
         return 1;
     }
@@ -329,7 +329,39 @@ public:
             _bufScreen[y * _screenWidth + x].Attributes = col;
         }
     }
+
+	void start() 
+	{
+		std::thread t = std::thread(&ConsoleGameEngine::);
+	}
 protected:
+
+	int errorMsg(const wchar_t *msg)
+	{
+		char buf[256];
+		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
+		SetConsoleActiveScreenBuffer(_hOriginalConsole);
+		wprintf(L"ERROR: %s\n\t%s\n", msg, buf);
+		return 0;
+	}
+
+
+	static bool closeHandler(DWORD evt)
+	{
+		// Note this gets called in a seperate OS thread, so it must
+		// only exit when the game has finished cleaning up, or else
+		// the process will be killed before OnUserDestroy() has finished
+		if (evt == CTRL_CLOSE_EVENT)
+		{
+			//atomActive = false;
+
+			//// Wait for thread to be exited
+			//std::unique_lock<std::mutex> ul(m_muxGame);
+			//cvGameFinished.wait(ul);
+		}
+
+		return true;
+	}
 
 	struct KeyState
 	{
@@ -357,6 +389,15 @@ protected:
 	bool _mouseNewState[TOTAL_MOUSE_PRESSES] = { 0 };
 	bool _consoleInFocus;
 	bool _enableSound;
+
+private:
+	void gameThread() 
+	{
+		if () 
+		{
+			
+		}
+	}
 };
 
 }; //olc
