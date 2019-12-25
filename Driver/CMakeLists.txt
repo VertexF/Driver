@@ -1,6 +1,8 @@
 add_library(Driver_Lib STATIC
 						 olcConsoleGameEngine.h
-						 olcConsoleGameEngine.cpp)
+						 olcConsoleGameEngine.cpp
+						 Driver.h
+						 Driver.cpp)
 
 add_executable(Driver main.cpp)
 

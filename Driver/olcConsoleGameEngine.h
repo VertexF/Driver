@@ -15,6 +15,8 @@
 namespace 
 {
 
+class ConsoleGameEngine;
+
 enum COLOUR
 {
 	FG_BLACK = 0x0000,
@@ -61,6 +63,10 @@ enum PIXEL_TYPE
 
 const int TOTAL_KEYS = 256;
 const int TOTAL_MOUSE_PRESSES = 5;
+
+std::atomic<bool> ATOM_ACTIVE = false;
+std::condition_variable GAME_FINISHED;
+std::mutex MUX_GAME;
 
 }; //TED
 
@@ -261,7 +267,7 @@ public:
         _screenWidth = width;
         _screenHeight = height;
         
-        _rectWindow = {0, 0, 1, 1};
+        _rectWindow = {0, 0, static_cast<short>(_screenWidth), static_cast<short>(_screenHeight)};
         SetConsoleWindowInfo(_hConsole, true, &_rectWindow);
         
         //Here we set the screen buffer up.
@@ -330,10 +336,60 @@ public:
         }
     }
 
+	void clip(int &x, int &y)
+	{
+		if (x < 0)
+		{
+			x = 0;
+		}
+
+		if (x > _screenWidth) 
+		{
+			x = _screenWidth;
+		}
+
+		if (y < 0)
+		{
+			y = 0;
+		}
+
+		if (y > _screenHeight)
+		{
+			y = _screenHeight;
+		}
+	}
+
+	void fill(int x1, int y1, int x2, int y2, short c = 0x2588, short col = 0x000F)
+	{
+		clip(x1, y1);
+		clip(x2, y2);
+		for (int x = x1; x < x2; x++)
+		{
+			for (int y = y1; y < y2; y++) 
+			{
+				draw(x, y, c, col);
+			}
+		}
+	}
+
 	void start() 
 	{
-		std::thread t = std::thread(&ConsoleGameEngine::);
+		ATOM_ACTIVE = true;
+		std::thread t = std::thread(&ConsoleGameEngine::gameThread, this);
+
+		t.join();
 	}
+
+	void setScreenWidth(int w) { _screenWidth = w; }
+	void setScreenHeight(int h) { _screenHeight = h; }
+	int getScreenWidth() const { return _screenWidth; }
+	int getScreenHeight() const { return _screenHeight; }
+
+	virtual bool onUserCreate() = 0;
+	virtual bool onUserUpdate(float elapsedTime) = 0;
+
+	//optional clean up
+	virtual bool onUserDestroy() { return true; }
 protected:
 
 	int errorMsg(const wchar_t *msg)
@@ -341,7 +397,7 @@ protected:
 		char buf[256];
 		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
 		SetConsoleActiveScreenBuffer(_hOriginalConsole);
-		wprintf(L"ERROR: %s\n\t%s\n", msg, buf);
+		printf("ERROR: %s\n\t%s\n", msg, buf);
 		return 0;
 	}
 
@@ -393,9 +449,155 @@ protected:
 private:
 	void gameThread() 
 	{
-		if () 
+		//Create user resources as part of this thread.
+		if (! onUserCreate()) 
 		{
-			
+			ATOM_ACTIVE = false;
+		}
+
+		//TODO: Create the audio for this game engine
+		//// Check if sound system should be enabled
+		//if (m_bEnableSound)
+		//{
+		//	if (!CreateAudio())
+		//	{
+		//		m_bAtomActive = false; // Failed to create audio system			
+		//		m_bEnableSound = false;
+		//	}
+		//}
+
+		auto tp1 = std::chrono::system_clock::now();
+		auto tp2 = std::chrono::system_clock::now();
+
+		while (ATOM_ACTIVE) 
+		{
+			while (ATOM_ACTIVE) 
+			{
+				//Now we need to handle timing.
+				tp2 = std::chrono::system_clock::now();
+				std::chrono::duration<float> elasedTime = tp2 - tp1;
+				tp1 = tp2;
+				float elapsedTime = elasedTime.count();
+
+				for (int i = 0; i < TOTAL_KEYS; i++) 
+				{
+					_keyNewState[i] = GetAsyncKeyState(i);
+
+					_keys[i].pressed = false;
+					_keys[i].released = false;
+
+					if (_keyNewState[i] != _keyOldState[i]) 
+					{
+						if (_keyNewState[i] & 0x8000) 
+						{
+							_keys[i].pressed = !(_keys[i].held);
+							_keys[i].held = true;
+						}
+						else 
+						{
+							_keys[i].released = true;
+							_keys[i].held = false;
+						}
+					}
+
+					_keyOldState[i] = _keyNewState[i];
+				}
+
+				//Handle mouse events
+				INPUT_RECORD inBuf[32];
+				DWORD events = 0;
+				GetNumberOfConsoleInputEvents(_hConsole, &events);
+				if (events > 0) 
+				{
+					ReadConsoleInput(_hConsole, inBuf, events, &events);
+				}
+
+				//Handle event of clicks and movement
+				for (DWORD i = 0; i < events; i++) 
+				{
+					switch (inBuf[i].EventType)
+					{
+					case FOCUS_EVENT:
+						_consoleInFocus = inBuf[i].Event.FocusEvent.bSetFocus;
+					break;
+
+					case MOUSE_EVENT:
+						switch (inBuf[i].Event.MouseEvent.dwEventFlags) 
+						{
+						case MOUSE_MOVED:
+							_mousePosX = inBuf[i].Event.MouseEvent.dwMousePosition.X;
+							_mousePosY = inBuf[i].Event.MouseEvent.dwMousePosition.Y;
+						break;
+
+						case 0:
+							for (int m = 0; m < TOTAL_MOUSE_PRESSES; m++)
+							{
+								_mouseNewState[m] = (inBuf[i].Event.MouseEvent.dwButtonState & (1 << m)) > 0;
+							}
+						break;
+
+						default:
+						break;
+
+						}
+					break;
+
+					default:
+					break;
+					}
+				}
+
+				for (int m = 0; m < TOTAL_MOUSE_PRESSES; m++) 
+				{
+					_mouse[m].pressed = false;
+					_mouse[m].released = false;
+
+					if (_mouseNewState[m] != _mouseOldState[m]) 
+					{
+						if (_mouseNewState[m]) 
+						{
+							_mouse[m].pressed = true;
+							_mouse[m].held = true;
+						}
+						else 
+						{
+							_mouse[m].released = true;
+							_mouse[m].held = false;
+						}
+					}
+
+					_mouseOldState[m] = _mouseNewState[m];
+				}
+
+				if (!onUserUpdate(elapsedTime)) 
+				{
+					ATOM_ACTIVE = false;
+				}
+
+				wchar_t s[256];
+				swprintf_s(s, L"One Lone Code Engine Revision - %s - FPS: %3.2f",
+						  _appName.c_str(), 1.f / elapsedTime);
+				//SetConsoleTitle(s);
+				WriteConsoleOutput(_hConsole, _bufScreen, 
+								  { static_cast<short>(_screenWidth), static_cast<short>(_screenHeight) },
+								  {0, 0}, &_rectWindow);
+			}
+
+			if (_enableSound) 
+			{
+				//TODO: Clean up audio
+			}
+
+			if (onUserDestroy()) 
+			{
+				delete[] _bufScreen;
+				SetConsoleActiveScreenBuffer(_hOriginalConsole);
+				GAME_FINISHED.notify_one();
+			}
+			else 
+			{
+				ATOM_ACTIVE = true;
+			}
 		}
 	}
 };

@@ -1,8 +1,11 @@
-#include "olcConsoleGameEngine.h"
+#include "Driver.h"
 
 int main() 
 {
-	olc::ConsoleGameEngine game;
+	Driver driver;
+	driver.constructConsole(160, 100, 8, 8);
+
+	driver.start();
 
 	return 0;
 }
