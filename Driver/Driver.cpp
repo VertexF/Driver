@@ -1,6 +1,7 @@
 #include "Driver.h"
 
-Driver::Driver() 
+Driver::Driver(int w, int h, int FontW, int FontH) : 
+	olc::ConsoleGameEngine(w, h, FontW, FontH)
 {
 	
 }
@@ -25,6 +26,7 @@ bool Driver::onUserUpdate(float elapsedTime)
 	//}
 
 	//draw(10, 10, 0xDB, 0x000A);
-	fill(0, 0, 160, 100, 0xDB, 0x000A);
+	//fill(0, 0, 160, 100, 0xDB, 0x00B);
+	drawLine(0, 0, 160, 100);
 	return true;
 }

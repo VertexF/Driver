@@ -2,8 +2,7 @@
 
 int main() 
 {
-	Driver driver;
-	driver.constructConsole(160, 100, 8, 8);
+	Driver driver(200, 200, 8, 8);
 
 	driver.start();
 

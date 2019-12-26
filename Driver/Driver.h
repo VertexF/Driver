@@ -6,7 +6,7 @@
 class Driver : public olc::ConsoleGameEngine
 {
 public:
-	Driver();
+	Driver(int w, int h, int FontW, int FontH);
 protected:
 	virtual bool onUserCreate() override;
 	virtual bool onUserUpdate(float elapsedTime) override;

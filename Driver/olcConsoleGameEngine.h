@@ -241,7 +241,8 @@ private:
 class ConsoleGameEngine 
 {
 public:
-	ConsoleGameEngine() : _screenWidth(80), _screenHeight(30), _consoleInFocus(true),
+	ConsoleGameEngine(int w, int h, int fontW, int fontH) : _screenWidth(w), _screenHeight(h),
+	_consoleInFocus(true),
     _enableSound(false), _mousePosX(0), _mousePosY(0), _appName(L"Default")
     {
         _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -250,6 +251,8 @@ public:
         std::memset(_keyNewState, 0, TOTAL_KEYS * sizeof(short));
         std::memset(_keyOldState, 0, TOTAL_KEYS * sizeof(short));
         std::memset(_keys, 0, TOTAL_KEYS * sizeof(KeyState));
+
+		constructConsole(w, h, fontW, fontH);
     }
     
     void enableSound()
@@ -259,9 +262,10 @@ public:
     
     int constructConsole(int width, int height, int fontw, int fonth)
     {
+		int errorCode = 1;
         if(_hConsole == INVALID_HANDLE_VALUE)
         {
-            return errorMsg(L"Bad Handle");
+			errorCode = errorMsg(L"Bad Handle");
         }
         
         _screenWidth = width;
@@ -275,13 +279,13 @@ public:
         
         if(!SetConsoleScreenBufferSize(_hConsole, coord))
         {
-			return errorMsg(L"SetConsoleScreenBufferSize");
+			errorCode = errorMsg(L"Bad Handle");
         }
         
         //Assign screen buffer to the console.
         if(!SetConsoleActiveScreenBuffer(_hConsole))
         {
-            return errorMsg(L"SetConsoleActiveScreenBuffer");
+			errorCode = errorMsg(L"SetConsoleActiveScreenBuffer");
         }
         
         //Set the font size.
@@ -300,23 +304,23 @@ public:
         wcscpy(cfi.FaceName, L"Console");
         if(!SetCurrentConsoleFontEx(_hConsole, false, &cfi))
         {
-            return errorMsg(L"SetCurrentConsoleFontEx");
+			errorCode = errorMsg(L"SetCurrentConsoleFontEx");
         }
         
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         if(!GetConsoleScreenBufferInfo(_hConsole, &csbi))
         {
-            return errorMsg(L"GetConsoleScreenBufferInfo");
+			errorCode = errorMsg(L"GetConsoleScreenBufferInfo");
         }
         
         if(_screenHeight > csbi.dwMaximumWindowSize.Y)
         {
-            return errorMsg(L"Screen Height / FontHeight too large");
+			errorCode = errorMsg(L"Screen Height / FontHeight too large");
         }
         
         if(_screenWidth > csbi.dwMaximumWindowSize.X)
         {
-            return errorMsg(L"Screen Width / FontWidth too large");
+			errorCode = errorMsg(L"Screen Width / FontWidth too large");
         }
         
         _bufScreen = new CHAR_INFO[_screenWidth * _screenHeight];
@@ -324,7 +328,7 @@ public:
         
         SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(closeHandler), true);
         
-        return 1;
+        return errorCode;
     }
     
     void draw(int x, int y, short c = 0x2588, short col = 0x000F)
@@ -367,6 +371,102 @@ public:
 		{
 			for (int y = y1; y < y2; y++) 
 			{
+				draw(x, y, c, col);
+			}
+		}
+	}
+
+	void drawLine(int x1, int y1, int x2, int y2, short c = 0x2588, short col = 0x000F)
+	{
+		int x, y, deltaX, deltaY, deltaAbsX, deltaAbsY, px, py, xe, ye;
+		deltaX = x2 - x1;
+		deltaY = y2 - y1;
+
+		deltaAbsX = std::abs(deltaX);
+		deltaAbsY = std::abs(deltaY);
+
+		px = 2 * (deltaAbsX - deltaAbsY);
+		py = 2 * (deltaAbsY - deltaAbsX);
+
+		if (deltaAbsY <= deltaAbsX)
+		{
+			if (deltaX >= 0) 
+			{
+				x = x1;
+				y = y1;
+				xe = x2;
+			}
+			else 
+			{
+				x = x2;
+				y = y2;
+				xe = x1;
+			}
+
+			draw(x, y, c, col);
+
+			for (int i = 0; x < xe; i++) 
+			{
+				x = x + 1;
+				if (px < 0) 
+				{
+					px = px + 2 * deltaAbsY;
+				}
+				else 
+				{
+					if ((deltaX < 0 && deltaY < 0) || (deltaX > 0 && deltaY > 0)) 
+					{
+						y = y + 1;
+					}
+					else 
+					{
+						y = y - 1;
+					}
+
+					px = px + 2 * (deltaAbsY - deltaAbsX);
+				}
+
+				draw(x, y, c, col);
+			}
+		}
+		else 
+		{
+			if (deltaY >= 0) 
+			{
+				x = x1;
+				y = y1;
+				ye = y2;
+			}
+			else 
+			{
+				x = x2;
+				y = y2;
+				ye = y1;
+			}
+
+			draw(x, y, c, col);
+
+			for (int i = 0; y < ye; i++) 
+			{
+				y = y + 1;
+				if (py <= 0) 
+				{
+					py = py + 2 * deltaAbsX;
+				}
+				else 
+				{
+					if ((deltaX < 0 && deltaY < 0) || (deltaX > 0 && deltaY > 0))
+					{
+						x = x + 1;
+					}
+					else 
+					{
+						x = x - 1;
+					}
+
+					py = py + 2 * (deltaAbsX - deltaAbsY);
+				}
+
 				draw(x, y, c, col);
 			}
 		}
