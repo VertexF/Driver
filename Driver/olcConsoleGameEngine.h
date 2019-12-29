@@ -238,107 +238,113 @@ private:
 	std::unique_ptr<short[]> _colours;
 };
 
-class ConsoleGameEngine 
+class ConsoleGameEngine
 {
+protected:
+
+	struct KeyState
+	{
+		bool pressed;
+		bool released;
+		bool held;
+	} _keys[TOTAL_KEYS], _mouse[TOTAL_MOUSE_PRESSES];
+
 public:
 	ConsoleGameEngine(int w, int h, int fontW, int fontH) : _screenWidth(w), _screenHeight(h),
-	_consoleInFocus(true),
-    _enableSound(false), _mousePosX(0), _mousePosY(0), _appName(L"Default")
-    {
-        _hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-        _hConsoleIn = GetStdHandle(STD_OUTPUT_HANDLE);
-        
-        std::memset(_keyNewState, 0, TOTAL_KEYS * sizeof(short));
-        std::memset(_keyOldState, 0, TOTAL_KEYS * sizeof(short));
-        std::memset(_keys, 0, TOTAL_KEYS * sizeof(KeyState));
+		_consoleInFocus(true),
+		_enableSound(false), _mousePosX(0), _mousePosY(0), _appName(L"Default")
+	{
+		_hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+		_hConsoleIn = GetStdHandle(STD_OUTPUT_HANDLE);
 
-		constructConsole(w, h, fontW, fontH);
-    }
-    
-    void enableSound()
-    {
-        _enableSound = true;
-    }
-    
-    int constructConsole(int width, int height, int fontw, int fonth)
-    {
+		std::memset(_keyNewState, 0, TOTAL_KEYS * sizeof(short));
+		std::memset(_keyOldState, 0, TOTAL_KEYS * sizeof(short));
+		std::memset(_keys, 0, TOTAL_KEYS * sizeof(KeyState));
+
+		constructConsole(fontW, fontH);
+	}
+
+	void enableSound()
+	{
+		_enableSound = true;
+	}
+
+	int constructConsole(int fontw, int fonth)
+	{
 		int errorCode = 1;
-        if(_hConsole == INVALID_HANDLE_VALUE)
-        {
+		if (_hConsole == INVALID_HANDLE_VALUE)
+		{
 			errorCode = errorMsg(L"Bad Handle");
-        }
-        
-        _screenWidth = width;
-        _screenHeight = height;
-        
-        _rectWindow = {0, 0, static_cast<short>(_screenWidth), static_cast<short>(_screenHeight)};
-        SetConsoleWindowInfo(_hConsole, true, &_rectWindow);
-        
-        //Here we set the screen buffer up.
-        COORD coord = {static_cast<short>(_screenWidth), static_cast<short>(_screenHeight)};
-        
-        if(!SetConsoleScreenBufferSize(_hConsole, coord))
-        {
-			errorCode = errorMsg(L"Bad Handle");
-        }
-        
-        //Assign screen buffer to the console.
-        if(!SetConsoleActiveScreenBuffer(_hConsole))
-        {
-			errorCode = errorMsg(L"SetConsoleActiveScreenBuffer");
-        }
-        
-        //Set the font size.
-        CONSOLE_FONT_INFOEX cfi;
-        cfi.cbSize = sizeof(cfi);
-        cfi.nFont = 0;
-        cfi.dwFontSize.X = fontw;
-        cfi.dwFontSize.Y = fonth;
-        cfi.FontFamily = FF_DONTCARE;
-        cfi.FontWeight = FW_NORMAL;
-        
-        //DWORD version = GetVersion();
-        //DWORD major = static_cast<DWORD>(LOBYTE(LOWORD(version)));
-        //DWORD minor = static_cast<DWORD>(HIBYTE(LOWORD(version)));
+		}
 
-        wcscpy(cfi.FaceName, L"Console");
-        if(!SetCurrentConsoleFontEx(_hConsole, false, &cfi))
-        {
+		_rectWindow = { 0, 0, static_cast<short>(_screenWidth), static_cast<short>(_screenHeight) };
+		SetConsoleWindowInfo(_hConsole, true, &_rectWindow);
+
+		//Here we set the screen buffer up.
+		COORD coord = { static_cast<short>(_screenWidth), static_cast<short>(_screenHeight) };
+
+		if (!SetConsoleScreenBufferSize(_hConsole, coord))
+		{
+			errorCode = errorMsg(L"Bad Handle");
+		}
+
+		//Assign screen buffer to the console.
+		if (!SetConsoleActiveScreenBuffer(_hConsole))
+		{
+			errorCode = errorMsg(L"SetConsoleActiveScreenBuffer");
+		}
+
+		//Set the font size.
+		CONSOLE_FONT_INFOEX cfi;
+		cfi.cbSize = sizeof(cfi);
+		cfi.nFont = 0;
+		cfi.dwFontSize.X = fontw;
+		cfi.dwFontSize.Y = fonth;
+		cfi.FontFamily = FF_DONTCARE;
+		cfi.FontWeight = FW_NORMAL;
+
+		//DWORD version = GetVersion();
+		//DWORD major = static_cast<DWORD>(LOBYTE(LOWORD(version)));
+		//DWORD minor = static_cast<DWORD>(HIBYTE(LOWORD(version)));
+
+		wcscpy(cfi.FaceName, L"Consolas");
+		if (!SetCurrentConsoleFontEx(_hConsole, false, &cfi))
+		{
 			errorCode = errorMsg(L"SetCurrentConsoleFontEx");
-        }
-        
-        CONSOLE_SCREEN_BUFFER_INFO csbi;
-        if(!GetConsoleScreenBufferInfo(_hConsole, &csbi))
-        {
+		}
+
+		CONSOLE_SCREEN_BUFFER_INFO csbi;
+		if (!GetConsoleScreenBufferInfo(_hConsole, &csbi))
+		{
 			errorCode = errorMsg(L"GetConsoleScreenBufferInfo");
-        }
-        
-        if(_screenHeight > csbi.dwMaximumWindowSize.Y)
-        {
+		}
+
+		if (_screenHeight > csbi.dwMaximumWindowSize.Y)
+		{
 			errorCode = errorMsg(L"Screen Height / FontHeight too large");
-        }
-        
-        if(_screenWidth > csbi.dwMaximumWindowSize.X)
-        {
+		}
+
+		if (_screenWidth > csbi.dwMaximumWindowSize.X)
+		{
 			errorCode = errorMsg(L"Screen Width / FontWidth too large");
-        }
-        
-        _bufScreen = new CHAR_INFO[_screenWidth * _screenHeight];
-        memset(_bufScreen, 0, sizeof(CHAR_INFO) * _screenWidth * _screenHeight);
-        
-        SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(closeHandler), true);
-        
-        return errorCode;
-    }
-    
-    void draw(int x, int y, short c = 0x2588, short col = 0x000F)
-    {
-        if(x >= 0 && x < _screenWidth && y >= 0 && y < _screenHeight)
-        {
-            _bufScreen[y * _screenWidth + x].Char.UnicodeChar = c;
-            _bufScreen[y * _screenWidth + x].Attributes = col;
-        }
-    }
+		}
+
+		_bufScreen = new CHAR_INFO[_screenWidth * _screenHeight];
+		memset(_bufScreen, 0, sizeof(CHAR_INFO) * _screenWidth * _screenHeight);
+
+		SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(closeHandler), true);
+
+		return errorCode;
+	}
+
+	void draw(int x, int y, short c = 0x2588, short col = 0x000F)
+	{
+		if (x >= 0 && x < _screenWidth && y >= 0 && y < _screenHeight)
+		{
+			_bufScreen[y * _screenWidth + x].Char.UnicodeChar = c;
+			_bufScreen[y * _screenWidth + x].Attributes = col;
+		}
+	}
 
 	void clip(int &x, int &y)
 	{
@@ -347,7 +353,7 @@ public:
 			x = 0;
 		}
 
-		if (x > _screenWidth) 
+		if (x > _screenWidth)
 		{
 			x = _screenWidth;
 		}
@@ -369,7 +375,7 @@ public:
 		clip(x2, y2);
 		for (int x = x1; x < x2; x++)
 		{
-			for (int y = y1; y < y2; y++) 
+			for (int y = y1; y < y2; y++)
 			{
 				draw(x, y, c, col);
 			}
@@ -390,13 +396,13 @@ public:
 
 		if (deltaAbsY <= deltaAbsX)
 		{
-			if (deltaX >= 0) 
+			if (deltaX >= 0)
 			{
 				x = x1;
 				y = y1;
 				xe = x2;
 			}
-			else 
+			else
 			{
 				x = x2;
 				y = y2;
@@ -405,20 +411,20 @@ public:
 
 			draw(x, y, c, col);
 
-			for (int i = 0; x < xe; i++) 
+			for (int i = 0; x < xe; i++)
 			{
 				x = x + 1;
-				if (px < 0) 
+				if (px < 0)
 				{
 					px = px + 2 * deltaAbsY;
 				}
-				else 
+				else
 				{
-					if ((deltaX < 0 && deltaY < 0) || (deltaX > 0 && deltaY > 0)) 
+					if ((deltaX < 0 && deltaY < 0) || (deltaX > 0 && deltaY > 0))
 					{
 						y = y + 1;
 					}
-					else 
+					else
 					{
 						y = y - 1;
 					}
@@ -429,15 +435,15 @@ public:
 				draw(x, y, c, col);
 			}
 		}
-		else 
+		else
 		{
-			if (deltaY >= 0) 
+			if (deltaY >= 0)
 			{
 				x = x1;
 				y = y1;
 				ye = y2;
 			}
-			else 
+			else
 			{
 				x = x2;
 				y = y2;
@@ -446,20 +452,20 @@ public:
 
 			draw(x, y, c, col);
 
-			for (int i = 0; y < ye; i++) 
+			for (int i = 0; y < ye; i++)
 			{
 				y = y + 1;
-				if (py <= 0) 
+				if (py <= 0)
 				{
 					py = py + 2 * deltaAbsX;
 				}
-				else 
+				else
 				{
 					if ((deltaX < 0 && deltaY < 0) || (deltaX > 0 && deltaY > 0))
 					{
 						x = x + 1;
 					}
-					else 
+					else
 					{
 						x = x - 1;
 					}
@@ -472,9 +478,49 @@ public:
 		}
 	}
 
+	void drawString(int x, int y, const std::wstring &c, short col = 0x000F)
+	{
+		for (std::size_t i = 0; i < c.size(); i++) 
+		{
+			_bufScreen[y * _screenWidth + x + i].Char.UnicodeChar = c.at(i);
+			_bufScreen[y * _screenWidth + x + i].Attributes = col;
+		}
+	}
+
+	void drawStringAlpha(int x, int y, const std::wstring &c, short col = 0x000F) 
+	{
+		for (std::size_t i = 0; i < c.size(); i++)
+		{
+			if (c[i] != L' ')
+			{
+				wchar_t character = c.at(i);
+				int index = (y * _screenWidth) + x + i;
+				_bufScreen[index].Char.UnicodeChar = character;
+				_bufScreen[index].Attributes = col;
+			}
+		}
+	}
+
+	void drawSprite(int x, int y, Sprite *sprite) 
+	{
+		if (sprite != nullptr) 
+		{
+			for (int i = 0; i < sprite->_width; i++) 
+			{
+				for (int j = 0; j < sprite->_height; j++)
+				{
+					if (sprite->getGlyph(i, j) != L' ') 
+					{
+						draw(x + i, y + j, sprite->getGlyph(i, j), sprite->getColour(i, j));
+					}
+				}
+			}
+		}
+	}
+
 	void start() 
 	{
-		ATOM_ACTIVE = true;
+		ATOM_ACTIVE = true; 
 		std::thread t = std::thread(&ConsoleGameEngine::gameThread, this);
 
 		t.join();
@@ -484,6 +530,7 @@ public:
 	void setScreenHeight(int h) { _screenHeight = h; }
 	int getScreenWidth() const { return _screenWidth; }
 	int getScreenHeight() const { return _screenHeight; }
+	KeyState getKey(int key) { if (sizeof(_keys) > key) return _keys[key];  }
 
 	virtual bool onUserCreate() = 0;
 	virtual bool onUserUpdate(float elapsedTime) = 0;
@@ -518,13 +565,6 @@ protected:
 
 		return true;
 	}
-
-	struct KeyState
-	{
-		bool pressed;
-		bool released;
-		bool held;
-	} _keys[TOTAL_KEYS], _mouse[TOTAL_MOUSE_PRESSES];
 
 	int _mousePosX;
 	int _mousePosY;
