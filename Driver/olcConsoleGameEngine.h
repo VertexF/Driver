@@ -277,8 +277,8 @@ public:
 			errorCode = errorMsg(L"Bad Handle");
 		}
 
-		_rectWindow = { 0, 0, static_cast<short>(_screenWidth), static_cast<short>(_screenHeight) };
-		SetConsoleWindowInfo(_hConsole, true, &_rectWindow);
+		_rectWindow = { 0, 0, 1, 1 };
+		SetConsoleWindowInfo(_hConsole, TRUE, &_rectWindow);
 
 		//Here we set the screen buffer up.
 		COORD coord = { static_cast<short>(_screenWidth), static_cast<short>(_screenHeight) };
@@ -327,6 +327,17 @@ public:
 		if (_screenWidth > csbi.dwMaximumWindowSize.X)
 		{
 			errorCode = errorMsg(L"Screen Width / FontWidth too large");
+		}
+
+		_rectWindow = { 0, 0, static_cast<short>(_screenWidth) - 1, static_cast<short>(_screenHeight) - 1 };
+		if (!SetConsoleWindowInfo(_hConsole, TRUE, &_rectWindow)) 
+		{
+			errorCode = errorMsg(L"SetConsoleWindowInfo");
+		}
+
+		if (!SetConsoleMode(_hConsole, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT))
+		{
+			errorCode = errorMsg(L"SetConsoleMode");
 		}
 
 		_bufScreen = new CHAR_INFO[_screenWidth * _screenHeight];

@@ -2,7 +2,7 @@
 
 int main() 
 {
-	Driver driver(110, 60, 10, 10);
+	Driver driver(160, 90, 8, 8);
 
 	driver.start();
 

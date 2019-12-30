@@ -17,7 +17,7 @@ bool Driver::onUserUpdate(float elapsedTime)
 	carPos = 0;
 	if (getKey(VK_UP).held)
 	{
-		carDis += 10.f * elapsedTime;
+		carDis += 100.f * elapsedTime;
 	}
 
 	fill(0, 0, getScreenWidth(), getScreenHeight(), L' ', 0);
@@ -40,16 +40,17 @@ bool Driver::onUserUpdate(float elapsedTime)
 			int rightClip = (midPoint + roadWidth) * getScreenWidth();
 
 			int row = (getScreenHeight() / 2) + y;
-			int lineColour = std::sin(20.f * std::pow(1.f - perspective, 3) + carDis * 0.1f) > 0.0f ? FG_GREEN : FG_DARK_GREEN;
+			int grassColour = std::sin(20.f * std::pow(1.f - perspective, 3) + carDis * 0.1f) > 0.0f ? FG_GREEN : FG_DARK_GREEN;
+			int curbColour = std::sin(80.f * std::pow(1.f - perspective, 2) + carDis) > 0.0f ? FG_RED : FG_WHITE;
 
 			//Left side of the road
 			if (x >= 0 && x < letfGrass)
 			{
-				draw(x, row, 0xDB, lineColour);
+				draw(x, row, 0xDB, grassColour);
 			}
 			if (x >= letfGrass && x < leftClip)
 			{
-				draw(x, row, 0xDB, FG_RED);
+				draw(x, row, 0xDB, curbColour);
 			}
 
 			//The road itself
@@ -61,24 +62,24 @@ bool Driver::onUserUpdate(float elapsedTime)
 			//Right side of the road
 			if (x >= rightClip && x < rightGrass)
 			{
-				draw(x, row, 0xDB, FG_RED);
+				draw(x, row, 0xDB, curbColour);
 			}
 			if (x >= rightGrass && x < getScreenWidth())
 			{
-				draw(x, row, 0xDB, lineColour);
+				draw(x, row, 0xDB, grassColour);
 			}
 		}
 	}
 
 	carPos = (getScreenWidth() / 2) + (static_cast<int>(getScreenWidth() * carPos) / 2.f) - 7;
 
-	drawStringAlpha(carPos, 45, L"   ||####||   ");
-	drawStringAlpha(carPos, 46, L"      ##      ");
-	drawStringAlpha(carPos, 47, L"     ####     ");
-	drawStringAlpha(carPos, 48, L"     ####     ");
-	drawStringAlpha(carPos, 49, L"|||  ####  |||");
-	drawStringAlpha(carPos, 50, L"|||########|||");
-	drawStringAlpha(carPos, 51, L"|||  ####  |||");
+	drawStringAlpha(carPos, 80, L"   ||####||   ");
+	drawStringAlpha(carPos, 81, L"      ##      ");
+	drawStringAlpha(carPos, 82, L"     ####     ");
+	drawStringAlpha(carPos, 83, L"     ####     ");
+	drawStringAlpha(carPos, 84, L"|||  ####  |||");
+	drawStringAlpha(carPos, 85, L"|||########|||");
+	drawStringAlpha(carPos, 86, L"|||  ####  |||");
 
 	return true;
 }
