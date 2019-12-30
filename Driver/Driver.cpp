@@ -1,24 +1,65 @@
 #include "Driver.h"
 
-Driver::Driver(int w, int h, int FontW, int FontH) : 
+#include <string>
+
+Driver::Driver(int w, int h, int FontW, int FontH) :
 	olc::ConsoleGameEngine(w, h, FontW, FontH), carPos(0.f),
-	carDis(0.f)
+	carDis(0.f), curv(0.f), speed(0.f), playerCurv(0.f)
 {
 	
 }
 
-bool Driver::onUserCreate()
-{
-	return true;
-}
-
 bool Driver::onUserUpdate(float elapsedTime)
 {
-	carPos = 0;
+	//carPos = 0;
 	if (getKey(VK_UP).held)
 	{
-		carDis += 100.f * elapsedTime;
+		speed += 2.f * elapsedTime;
 	}
+	else 
+	{
+		speed -= 1.f * elapsedTime;
+	}
+
+	if (getKey(VK_LEFT).held) 
+	{
+		playerCurv -= 0.7f * elapsedTime;
+	}
+	if (getKey(VK_RIGHT).held) 
+	{
+		playerCurv += 0.7f * elapsedTime;
+	}
+
+	if (std::fabs(playerCurv - curv) >= 0.8f)
+	{
+		speed -= 5.f * elapsedTime;
+	}
+
+	if (speed > 1.f) 
+	{
+		speed = 1.f;
+	}
+	if (speed < 0.f) 
+	{
+		speed = 0.f;
+	}
+
+	carDis += (70.f * speed) * elapsedTime;
+
+	float offset = 0.f;
+	int indexTrackSec = 0;
+
+	while (indexTrackSec < trackSec.size() && offset <= carDis)
+	{
+		offset += trackSec[indexTrackSec].second;
+		indexTrackSec++;
+	}
+
+	float targetCuvr = trackSec[indexTrackSec - 1].first;
+	float curDiff = (targetCuvr - curv) * elapsedTime * speed;
+	curv += curDiff;
+
+	targetCuvr += (curv) * elapsedTime * speed;
 
 	fill(0, 0, getScreenWidth(), getScreenHeight(), L' ', 0);
 
@@ -27,7 +68,7 @@ bool Driver::onUserUpdate(float elapsedTime)
 		for (int x = 0; x < getScreenWidth(); ++x) 
 		{
 			float perspective = static_cast<float>(y) / (getScreenHeight() / 2.f);
-			float midPoint = 0.5f;
+			float midPoint = 0.5f + curv * std::pow(1.f - perspective, 3);
 			float roadWidth = 0.1f + perspective * 0.8f;
 			float clipWidth = roadWidth * 0.15f;
 
@@ -71,15 +112,36 @@ bool Driver::onUserUpdate(float elapsedTime)
 		}
 	}
 
-	carPos = (getScreenWidth() / 2) + (static_cast<int>(getScreenWidth() * carPos) / 2.f) - 7;
+	carPos = playerCurv - targetCuvr;
+	int pos = (getScreenWidth() / 2) + (static_cast<int>(getScreenWidth() * carPos) / 2.f) - 7;
 
-	drawStringAlpha(carPos, 80, L"   ||####||   ");
-	drawStringAlpha(carPos, 81, L"      ##      ");
-	drawStringAlpha(carPos, 82, L"     ####     ");
-	drawStringAlpha(carPos, 83, L"     ####     ");
-	drawStringAlpha(carPos, 84, L"|||  ####  |||");
-	drawStringAlpha(carPos, 85, L"|||########|||");
-	drawStringAlpha(carPos, 86, L"|||  ####  |||");
+	drawStringAlpha(pos, 80, L"   ||####||   ");
+	drawStringAlpha(pos, 81, L"      ##      ");
+	drawStringAlpha(pos, 82, L"     ####     ");
+	drawStringAlpha(pos, 83, L"     ####     ");
+	drawStringAlpha(pos, 84, L"|||  ####  |||");
+	drawStringAlpha(pos, 85, L"|||########|||");
+	drawStringAlpha(pos, 86, L"|||  ####  |||");
+
+	drawString(0, 0, L"Distance: " + std::to_wstring(carDis));
+	drawString(0, 1, L"Target Curvature: " + std::to_wstring(curv));
+	drawString(0, 2, L"Player Curvature: " + std::to_wstring(playerCurv));
+	drawString(0, 3, L"Player Speed: " + std::to_wstring(speed));
+	drawString(0, 4, L"Track Curvature: " + std::to_wstring(targetCuvr));
+
+	return true;
+}
+
+bool Driver::onUserCreate() 
+{
+	trackSec.push_back(std::pair<float, float>(0.f, 10.f)); //Start, finish
+	trackSec.push_back(std::pair<float, float>(0.f, 200.f));
+	trackSec.push_back(std::pair<float, float>(1.f, 200.f));
+	trackSec.push_back(std::pair<float, float>(0.f, 400.f));
+	trackSec.push_back(std::pair<float, float>(-1.f, 200.f));
+	trackSec.push_back(std::pair<float, float>(0.f, 100.f));
+	trackSec.push_back(std::pair<float, float>(-1.f, 200.f));
+	trackSec.push_back(std::pair<float, float>(1.f, 200.f));
 
 	return true;
 }

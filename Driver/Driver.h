@@ -14,6 +14,13 @@ private:
 	//Complete left -1, 1 is completely right.
 	float carPos;
 	float carDis;
+	float curv;
+	float speed;
+
+	float playerCurv;
+
+	//Curvature, distance 
+	std::vector<std::pair<float, float>> trackSec;
 };
 
 #endif // !DRIVER_HDR
