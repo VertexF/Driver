@@ -4,7 +4,7 @@
 
 Driver::Driver(int w, int h, int FontW, int FontH) :
 	olc::ConsoleGameEngine(w, h, FontW, FontH), carPos(0.f),
-	carDis(0.f), curv(0.f), speed(0.f), playerCurv(0.f)
+	carDis(0.f), curv(0.f), speed(0.f), playerCurv(0.f), targetCuvr(0.f)
 {
 	
 }
@@ -30,7 +30,7 @@ bool Driver::onUserUpdate(float elapsedTime)
 		playerCurv += 0.7f * elapsedTime;
 	}
 
-	if (std::fabs(playerCurv - curv) >= 0.8f)
+	if (std::fabs(playerCurv - targetCuvr) >= 0.8f)
 	{
 		speed -= 5.f * elapsedTime;
 	}
@@ -55,8 +55,8 @@ bool Driver::onUserUpdate(float elapsedTime)
 		indexTrackSec++;
 	}
 
-	float targetCuvr = trackSec[indexTrackSec - 1].first;
-	float curDiff = (targetCuvr - curv) * elapsedTime * speed;
+	float target = trackSec[indexTrackSec - 1].first;
+	float curDiff = (target - curv) * elapsedTime * speed;
 	curv += curDiff;
 
 	targetCuvr += (curv) * elapsedTime * speed;
@@ -112,6 +112,7 @@ bool Driver::onUserUpdate(float elapsedTime)
 		}
 	}
 
+	//fCarPos = fPlayerCurvature - fTrackCurvature;
 	carPos = playerCurv - targetCuvr;
 	int pos = (getScreenWidth() / 2) + (static_cast<int>(getScreenWidth() * carPos) / 2.f) - 7;
 

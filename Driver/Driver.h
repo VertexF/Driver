@@ -18,6 +18,7 @@ private:
 	float speed;
 
 	float playerCurv;
+	float targetCuvr;
 
 	//Curvature, distance 
 	std::vector<std::pair<float, float>> trackSec;
