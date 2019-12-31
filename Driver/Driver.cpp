@@ -12,7 +12,6 @@ Driver::Driver(int w, int h, int FontW, int FontH) :
 
 bool Driver::onUserUpdate(float elapsedTime)
 {
-	//carPos = 0;
 	if (getKey(VK_UP).held)
 	{
 		speed += 2.f * elapsedTime;
@@ -143,7 +142,6 @@ bool Driver::onUserUpdate(float elapsedTime)
 		}
 	}
 
-	//fCarPos = fPlayerCurvature - fTrackCurvature;
 	carPos = playerCurv - targetCuvr;
 	int pos = (getScreenWidth() / 2) + (static_cast<int>(getScreenWidth() * carPos) / 2.f) - 7;
 

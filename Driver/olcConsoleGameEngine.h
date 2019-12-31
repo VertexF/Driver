@@ -277,8 +277,8 @@ public:
 			errorCode = errorMsg(L"Bad Handle");
 		}
 
-		_rectWindow = { 0, 0, 1, 1 };
-		SetConsoleWindowInfo(_hConsole, TRUE, &_rectWindow);
+		//_rectWindow = { 0, 0, 1, 1 };
+		//SetConsoleWindowInfo(_hConsole, TRUE, &_rectWindow);
 
 		//Here we set the screen buffer up.
 		COORD coord = { static_cast<short>(_screenWidth), static_cast<short>(_screenHeight) };
@@ -343,7 +343,7 @@ public:
 		_bufScreen = new CHAR_INFO[_screenWidth * _screenHeight];
 		memset(_bufScreen, 0, sizeof(CHAR_INFO) * _screenWidth * _screenHeight);
 
-		SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(closeHandler), true);
+		SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(closeHandler), TRUE);
 
 		return errorCode;
 	}
