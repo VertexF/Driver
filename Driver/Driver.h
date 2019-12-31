@@ -19,9 +19,13 @@ private:
 
 	float playerCurv;
 	float targetCuvr;
+	float trackDis;
+
+	float currentLapTime;
 
 	//Curvature, distance 
 	std::vector<std::pair<float, float>> trackSec;
+	std::list<float> lapTimes;
 };
 
 #endif // !DRIVER_HDR

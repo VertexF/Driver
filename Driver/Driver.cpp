@@ -4,7 +4,8 @@
 
 Driver::Driver(int w, int h, int FontW, int FontH) :
 	olc::ConsoleGameEngine(w, h, FontW, FontH), carPos(0.f),
-	carDis(0.f), curv(0.f), speed(0.f), playerCurv(0.f), targetCuvr(0.f)
+	carDis(0.f), curv(0.f), speed(0.f), playerCurv(0.f), targetCuvr(0.f),
+	trackDis(0.f), currentLapTime(0.f)
 {
 	
 }
@@ -21,13 +22,17 @@ bool Driver::onUserUpdate(float elapsedTime)
 		speed -= 1.f * elapsedTime;
 	}
 
+	int carDirection = 0;
+
 	if (getKey(VK_LEFT).held) 
 	{
-		playerCurv -= 0.7f * elapsedTime;
+		playerCurv -= 0.7f * elapsedTime; 
+		carDirection = 1;
 	}
 	if (getKey(VK_RIGHT).held) 
 	{
 		playerCurv += 0.7f * elapsedTime;
+		carDirection = -1;
 	}
 
 	if (std::fabs(playerCurv - targetCuvr) >= 0.8f)
@@ -45,9 +50,18 @@ bool Driver::onUserUpdate(float elapsedTime)
 	}
 
 	carDis += (70.f * speed) * elapsedTime;
+	currentLapTime += elapsedTime;
 
 	float offset = 0.f;
 	int indexTrackSec = 0;
+
+	if(carDis >= trackDis)
+	{
+		carDis -= trackDis;
+		lapTimes.push_front(currentLapTime);
+		lapTimes.pop_back();
+		currentLapTime = 0.f;
+	}
 
 	while (indexTrackSec < trackSec.size() && offset <= carDis)
 	{
@@ -61,7 +75,22 @@ bool Driver::onUserUpdate(float elapsedTime)
 
 	targetCuvr += (curv) * elapsedTime * speed;
 
-	fill(0, 0, getScreenWidth(), getScreenHeight(), L' ', 0);
+	for (int y = 0; y < getScreenHeight() / 2; ++y) 
+	{
+		for (int x = 0; x < getScreenWidth(); ++x) 
+		{
+			draw(x, y, y < getScreenHeight() / 4 ? PIXEL_HALF : 0xDB, FG_DARK_BLUE);
+		}
+	}
+
+	for (int x = 0; x < getScreenWidth(); ++x)
+	{
+		int hillHeight = static_cast<int>(std::fabs(std::sin(x * 0.01f + targetCuvr) * 16.f));
+		for (int y = (getScreenHeight() / 2) - hillHeight; y < getScreenHeight() / 2; ++y) 
+		{
+			draw(x, y, 0xDB, FG_DARK_YELLOW);
+		}
+	}
 
 	for (int y = 0; y < getScreenHeight() / 2; ++y)
 	{
@@ -84,6 +113,8 @@ bool Driver::onUserUpdate(float elapsedTime)
 			int grassColour = std::sin(20.f * std::pow(1.f - perspective, 3) + carDis * 0.1f) > 0.0f ? FG_GREEN : FG_DARK_GREEN;
 			int curbColour = std::sin(80.f * std::pow(1.f - perspective, 2) + carDis) > 0.0f ? FG_RED : FG_WHITE;
 
+			int roadColour = (indexTrackSec - 1) == 0 ? FG_WHITE : FG_GREY;
+
 			//Left side of the road
 			if (x >= 0 && x < letfGrass)
 			{
@@ -97,7 +128,7 @@ bool Driver::onUserUpdate(float elapsedTime)
 			//The road itself
 			if (x >= leftClip && x < rightClip)
 			{
-				draw(x, row, 0xDB, FG_GREY);
+				draw(x, row, 0xDB, roadColour);
 			}
 
 			//Right side of the road
@@ -116,19 +147,64 @@ bool Driver::onUserUpdate(float elapsedTime)
 	carPos = playerCurv - targetCuvr;
 	int pos = (getScreenWidth() / 2) + (static_cast<int>(getScreenWidth() * carPos) / 2.f) - 7;
 
-	drawStringAlpha(pos, 80, L"   ||####||   ");
-	drawStringAlpha(pos, 81, L"      ##      ");
-	drawStringAlpha(pos, 82, L"     ####     ");
-	drawStringAlpha(pos, 83, L"     ####     ");
-	drawStringAlpha(pos, 84, L"|||  ####  |||");
-	drawStringAlpha(pos, 85, L"|||########|||");
-	drawStringAlpha(pos, 86, L"|||  ####  |||");
+	switch (carDirection)
+	{
+	case 0:
+		drawStringAlpha(pos, 80, L"   ||####||   ");
+		drawStringAlpha(pos, 81, L"      ##      ");
+		drawStringAlpha(pos, 82, L"     ####     ");
+		drawStringAlpha(pos, 83, L"     ####     ");
+		drawStringAlpha(pos, 84, L"|||  ####  |||");
+		drawStringAlpha(pos, 85, L"|||########|||");
+		drawStringAlpha(pos, 86, L"|||  ####  |||");
+		break;
+
+	case +1:
+		drawStringAlpha(pos, 80, L"      //####//");
+		drawStringAlpha(pos, 81, L"         ##   ");
+		drawStringAlpha(pos, 82, L"       ####   ");
+		drawStringAlpha(pos, 83, L"      ####    ");
+		drawStringAlpha(pos, 84, L"///  ####//// ");
+		drawStringAlpha(pos, 85, L"//#######///O ");
+		drawStringAlpha(pos, 86, L"/// #### //// ");
+		break;
+
+	case -1:
+		drawStringAlpha(pos, 80, L"\\\\####\\\\      ");
+		drawStringAlpha(pos, 81, L"   ##         ");
+		drawStringAlpha(pos, 82, L"   ####       ");
+		drawStringAlpha(pos, 83, L"    ####      ");
+		drawStringAlpha(pos, 84, L" \\\\\\\\####  \\\\\\");
+		drawStringAlpha(pos, 85, L" O\\\\\\#######\\\\");
+		drawStringAlpha(pos, 86, L" \\\\\\\\ #### \\\\\\");
+		break;
+	}
 
 	drawString(0, 0, L"Distance: " + std::to_wstring(carDis));
 	drawString(0, 1, L"Target Curvature: " + std::to_wstring(curv));
 	drawString(0, 2, L"Player Curvature: " + std::to_wstring(playerCurv));
 	drawString(0, 3, L"Player Speed: " + std::to_wstring(speed));
 	drawString(0, 4, L"Track Curvature: " + std::to_wstring(targetCuvr));
+
+	auto labTime = [](float t) 
+	{
+		int minutes = t / 60.f;
+		int seconds = t - (minutes * 60.f);
+		int milliSeconds = (t - static_cast<float>(seconds)) * 1000.f;
+
+		return std::to_wstring(minutes) + L" : " + 
+			   std::to_wstring(seconds) + L" : " + 
+			   std::to_wstring(milliSeconds);
+	};
+
+	drawString(10, 8, labTime(currentLapTime));
+
+	int j = 10;
+	for (auto current : lapTimes)
+	{
+		drawString(10, j, labTime(current));
+		j++;
+	}
 
 	return true;
 }
@@ -143,6 +219,13 @@ bool Driver::onUserCreate()
 	trackSec.push_back(std::pair<float, float>(0.f, 100.f));
 	trackSec.push_back(std::pair<float, float>(-1.f, 200.f));
 	trackSec.push_back(std::pair<float, float>(1.f, 200.f));
+
+	for(auto sec : trackSec)
+	{
+		trackDis += sec.second;
+	}
+
+	lapTimes = {0, 0, 0, 0};
 
 	return true;
 }
